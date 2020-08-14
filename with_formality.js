@@ -64,20 +64,20 @@ function rnd(len) {
   return len === 0 ? "" : (Math.random() > 0.5 ? "1" : "0") + rnd(len - 1);
 };
 
-var a = "0b0101010101010101";
-var b = "0b1111111111111111";
-a += rnd(1);
-b += rnd(1);
-test(a, b);
-console.log("");
+//var a = "0b0101010101010101";
+//var b = "0b1111111111111111";
+//a += rnd(1);
+//b += rnd(1);
+//test(a, b);
+//console.log("");
 
 // Tests
-//var a = "0b";
-//var b = "0b";
-//for (var i = 0; i < 256; ++i) {
-  //console.log("Multiplying two "+(i+1)+"-bit numbers.");
-  //a += rnd(1);
-  //b += rnd(1);
-  //test(a, b);
-  //console.log("");
-//};
+var a = "0b";
+var b = "0b";
+for (var i = 0; i < 256; ++i) {
+  console.log("Multiplying two "+(i+1)+"-bit numbers.");
+  a += rnd(1);
+  b += rnd(1);
+  test(a, b);
+  console.log("");
+};

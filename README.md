@@ -19,7 +19,14 @@ programmed in a way that should be exponential**. It is not fast compared to
 big-integer techniques, but it highlights how some algorithms that look
 impractical can be reasonably efficient on optimal evaluators. Keeping these
 techniques in mind may allow a funtional programmer not to dismiss elegant ideas
-that are more efficient than initially thought.
+that are more efficient than initially thought. 
+
+Note that Formality's non-optimal back-ends (like JavaScript) are still much
+faster in practice (and feature actual BigInts, so there is no need to implement
+multiplication that way). But by exploring these techniques, and by improving
+the optimal runtime, it could be a great alternative in a future. To learn more
+about that, check ["Solving the mystery behind Abstract Algorithm’s magical
+optimizations"](https://medium.com/@maiavictor/solving-the-mystery-behind-abstract-algorithms-magical-optimizations-144225164b07).
 
 ## Usage
 
@@ -67,7 +74,7 @@ inc (B0 pred) = B1 pred
 inc (B1 pred) = B0 (inc pred)
 ```
 
-In Formality, we could write it as:
+For example, `inc(110001) == 001001`. In Formality, we could write it as:
 
 ```c
 inc(bs: Bits): Bits
@@ -91,15 +98,15 @@ inc(bs: Bits): Bits
 ```
 
 This innocent optimization is essential for the algorithm, as it allows the
-"headers" of the `bn`, `b1` and `b0` constructors to be shared.  This, in turn,
+"headers" of the `bn`, `b1` and `b0` constructors to be "shared". This, in turn,
 causes the composition of `inc . inc` not to grow in size, allowing it to fuse
 and, thus, be called `n` times in `O(log(n))` time via compact Church Nats.
 
 ### 3. Fueling fusion with compact Church Nats
 
 A Church Nat is a λ-term in the form `λs.λz.(s(s...(s(s(z)))))` A compact Church
-Nat is one that "compresses" its own body by using chaining "let" expressions.
-For example, the term below, called `c255`:
+Nat is one that "compresses" its own body by chaining "let" expressions. For
+example, the term below, called `c255`:
 
 ```c
 c255 = λs. λz.
@@ -116,77 +123,63 @@ c255 = λs. λz.
 
 Is equivalent to `λs.λz.(s(s(s(s...255-times...z))))`, but in a much shorter
 form. In an optimal evaluator, we can use `c255` to apply `inc` `n` times to a
-bit-string in `O(log(n))` time. For example, the term below:
-
-```
-id(c4294967296(inc, b0(b0(b0(b0(b0(...bn)))))))
-```
-
-Would apply `inc` about 4 billion times to the empty bit-string, yet it would
-halt in much less than 4 billion steps. For an in-depth review of this effect,
-check ["Solving the mystery behind Abstract Algorithm’s magical optimizations"](https://medium.com/@maiavictor/solving-the-mystery-behind-abstract-algorithms-magical-optimizations-144225164b07).
-We can write a function that converts a Bits to a compact Church Nat as:
+bit-string in `O(log(n))` time. For example, `id(c4294967296(inc, b0(b0(b0(b0(b0(...bn)))))))`
+would apply `inc` about 4 billion times, yet it would halt in much less than 4
+billion steps. To convert a Bits to a compact Church Nat, we just write a
+`repeat` function that applies `f` repeatedly to `x`:
 
 ```c
-// Church-Encoded Natural Number
-CNat: Type
-  (P: Type) -> (P -> P) -> P -> P
-
-// Converts a Bits to a compact CNat
-times(bs: Bits)<P: Type>(s: P -> P, z: P): P
+// Applies a function n times repeatedly to an argument
+repeat(bs: Bits)<P: Type>(s: P -> P, z: P): P
   case bs:
   with s:_ = s;
   with z:_ = z;
   | bn => z;
-  | b0 => times(bs.pred)<P>((x) s(s(x)), z);
-  | b1 => times(bs.pred)<P>((x) s(s(x)), s(z));
+  | b0 => repeat(bs.pred)<P>((x) s(s(x)), z);
+  | b1 => repeat(bs.pred)<P>((x) s(s(x)), s(z));
 ```
-
-Here, `with` is a small optimization that prevents duplicating `s` and `z` more
-than needed.
 
 ### 4. Layering fused increments to perform multiplications
 
 The final step of the algorithm is to convert the first number, `a`, to a
-compact Church Nat, and use it to build `f = inc^a`, i.e., a function that
-applies `inc` `a` times (or, in other words, adds `a`). Then we just recurse
-through `b`, replacing each occurrence of `b1(...)` by `f(b0(...))`. This
-results in `c = Σ(a * 2^i)` for each set bit `i` on `b`, which equals `a * b`.
+compact Church Nat, and use it to build `add(a,b)` as a function that applies
+`inc` `a` times. Then we just recurse through `b`, replacing each occurrence of
+`b1(...)` by `add(a,(b0(...)))`. This results in `c = Σ(a * 2^i)` for each set
+bit `i` on `b`, which is `a * b`. For example, with `a = 6` and `b = 37`, we'd
+get:
 
-For example, if we had `a = 6` (`011`) and `b = 37` (`101001`), then this would
-result in `f = inc^6` (add 6) and `c = f(b0(b0(f(b0(b0(b0(f(b0(be)))))))))`,
-which is `6 + 6*2^2 + 6*2^5`, which is `222`, which equals `6 * 37`.
+```
+c = add(6,b0(b0(add(6,b0(b0(b0(add(6,b0(be)))))))))
+```
+
+Which is the same as `6 + 6*2^2 + 6*2^5`, which is `222` (`6 * 37`).
 
 ```c
-multiplier(f: Bits -> Bits, bs: Bits): Bits
-  case bs:
-  with m:_ = multiplier;
-  with f:_ = f;
-  | bn => bn;
-  | b0 => b0(m(f, bs.pred));
-  | b1 => f(b0(m(f, bs.pred)));
+// Adds two Bits by using repeated incs
+add(a: Bits, b: Bits): Bits
+  repeat(a)<Bits>(inc, b)
 
+// Multiplies two bit strings
 mul(a: Bits, b: Bits): Bits
-  id(multiplier(times(a)<Bits>(inc), b))
+  id(mul.go(add(a), b))
+
+// Helper function
+mul.go(f: Bits -> Bits, bs: Bits): Bits
+  case bs:
+  with go:_ = mul.go;
+  | bn => bn;
+  | b0 => b0(go(f, bs.pred));
+  | b1 => f(b0(go(f, bs.pred)));
 ```
 
 ## Conclusion
 
 The catch is that, if we implemented this algorithm in any non-optimal
 functional language, it would be exponential, since we're performing `2^n` calls
-to `inc` (with `n` being the bit-size of `a`). Of course, we could instead
-implement a separate addition function with a third carry bit, but, due to
-optimal reduction, `inc^a` is evaluated in linear time instead, sparing us the
-need of doing so, making this multiplication algorithm viable. In other words,
-this fusion technique turned `inc` into `add` without ever having to build it
-manually, which is what makes it interesting.
-
-Note the current interaction net (optimal) runtime is still very, very slow in
-practice, which is why the times are high. Alternate back-ends (like JavaScript)
-are faster and feature actual BigInts, so there is no need to implement
-multiplication that way. But there is plenty room for speedups, and by exploring
-these techniques, and by working on faster runtimes, interaction nets could be a
-great alternative in a future.
+to `inc` (with `n` being the bit-size of `a`). The fusion technique allowed us
+to turn `inc` into an efficient `add` by mere repetition, without ever having to
+reason about carry bits, and without losing any efficiency, which is what makes
+it interesting.
 
 The `global.fm` file can be type-checked with `fm`, and you can run it with
 `fmopt test` (edit the `test` term as suited). It will print the result as a

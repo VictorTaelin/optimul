@@ -1,5 +1,4 @@
-// Numbers encoded as strings of bits.
-// The leftmost bit is the least significant.
+// Numbers as bistrings (leftmost is least significant).
 T Bits
 | bn;
 | b0(pred: Bits);
@@ -12,8 +11,7 @@ id(bs: Bits): Bits
   | b0 => b0(id(bs.pred));
   | b1 => b1(id(bs.pred));
 
-// Increments a bit-string by 1.
-// Lambdas are lifted to enable fusion.
+// Increments a bit-string by 1. Lambdas lifted for fusion.
 inc(bs: Bits): Bits
   <P> (bn, b0, b1)
   case bs:
@@ -22,33 +20,31 @@ inc(bs: Bits): Bits
   | b1 => b0(inc(bs.pred));
   : P(inc(bs.self));
 
-// Church-Encoded Natural Number
-CNat: Type
-  (P: Type) -> (P -> P) -> P -> P
-
-// Converts a Bits to a compact CNat
-times(bs: Bits)<P: Type>(s: P -> P, z: P): P
+// Applies a function n times repeatedly to an argument
+repeat(bs: Bits)<P: Type>(s: P -> P, z: P): P
   case bs:
   with s:_ = s;
   with z:_ = z;
   | bn => z;
-  | b0 => times(bs.pred)<P>((x) s(s(x)), z);
-  | b1 => times(bs.pred)<P>((x) s(s(x)), s(z));
+  | b0 => repeat(bs.pred)<P>((x) s(s(x)), z);
+  | b1 => repeat(bs.pred)<P>((x) s(s(x)), s(z));
 
-// Builds a multiplicator by layering repeated incs
-multiplier(f: Bits -> Bits, bs: Bits): Bits
-  case bs:
-  with m:_ = multiplier;
-  with f:_ = f;
-  | bn => bn;
-  | b0 => b0(m(f, bs.pred));
-  | b1 => f(b0(m(f, bs.pred)));
+// Adds two Bits by using repeated incs
+add(a: Bits, b: Bits): Bits
+  repeat(a)<Bits>(inc, b)
 
-// To multiply two bit-strings, `a` and `b`, we convert `a` to a CNat, use it to
-// convert `b` into a multiplier which layers `a`-repeated incs for each of its
-// set bits, and then apply the identity to enable runtime fusion.
+// Multiplies two bit strings
 mul(a: Bits, b: Bits): Bits
-  id(multiplier(times(a)<Bits>(inc), b))
+  id(mul.go(add(a), b))
 
+// Helper function
+mul.go(f: Bits -> Bits, bs: Bits): Bits
+  case bs:
+  with go:_ = mul.go;
+  | bn => bn;
+  | b0 => b0(go(f, bs.pred));
+  | b1 => f(b0(go(f, bs.pred)));
+
+// Just a test. Run via JS with `fmio test`, or optimally with `fmopt test`.
 test: Bits
   mul(b1(b0(b0(b1(b0(bn))))), b0(b1(b0(b0(b0(bn))))))
