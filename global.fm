@@ -1,0 +1,54 @@
+// Numbers encoded as strings of bits.
+// The leftmost bit is the least significant.
+T Bits
+| bn;
+| b0(pred: Bits);
+| b1(pred: Bits);
+
+// Identity on Bits.
+id(bs: Bits): Bits
+  case bs:
+  | bn => bn;
+  | b0 => b0(id(bs.pred));
+  | b1 => b1(id(bs.pred));
+
+// Increments a bit-string by 1.
+// Lambdas are lifted to enable fusion.
+inc(bs: Bits): Bits
+  <P> (bn, b0, b1)
+  case bs:
+  | bn => bn;
+  | b0 => b1(bs.pred);
+  | b1 => b0(inc(bs.pred));
+  : P(inc(bs.self));
+
+// Church-Encoded Natural Number
+CNat: Type
+  (P: Type) -> (P -> P) -> P -> P
+
+// Converts a Bits to a compact CNat
+times(bs: Bits)<P: Type>(s: P -> P, z: P): P
+  case bs:
+  with s:_ = s;
+  with z:_ = z;
+  | bn => z;
+  | b0 => times(bs.pred)<P>((x) s(s(x)), z);
+  | b1 => times(bs.pred)<P>((x) s(s(x)), s(z));
+
+// Builds a multiplicator by layering repeated incs
+multiplier(f: Bits -> Bits, bs: Bits): Bits
+  case bs:
+  with m:_ = multiplier;
+  with f:_ = f;
+  | bn => bn;
+  | b0 => b0(m(f, bs.pred));
+  | b1 => f(b0(m(f, bs.pred)));
+
+// To multiply two bit-strings, `a` and `b`, we convert `a` to a CNat, use it to
+// convert `b` into a multiplier which layers `a`-repeated incs for each of its
+// set bits, and then apply the identity to enable runtime fusion.
+mul(a: Bits, b: Bits): Bits
+  id(multiplier(times(a)<Bits>(inc), b))
+
+test: Bits
+  mul(b1(b0(b0(b1(b0(bn))))), b0(b1(b0(b0(b0(bn))))))

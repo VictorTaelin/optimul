@@ -1,0 +1,15 @@
+{
+  "name": "optmul",
+  "version": "0.1.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Victor Maia",
+  "license": "MIT",
+  "dependencies": {
+    "abstract-algorithm": "^0.2.2",
+    "formality-lang": "^0.4.119"
+  }
+}
