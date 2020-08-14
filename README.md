@@ -1,30 +1,29 @@
 # Multiplication with optimal β-reduction
 
-In this repository, I'll present an elegant multiplication algorithm that seems
-to peform counter-intuitively well. The algorithm consists of mere 40 lines of
+In this repository, I'll present an elegant multiplication algorithm that
+performs counter-intuitively well. The algorithm consists of mere 40 lines of
 code in [Formality](https://github.com/moonad/formality), a new proof language
 featuring optimal beta-reduction. It works by exploiting an effect I call
 "runtime fusion", which allows you to compute `n` repeated function calls in
 `O(log(n))` time by using compact, Church-Encoded natural numbers to
 self-compose suitable functions. By applying this technique to the binary `inc`
 function, we get an efficient `add` "for free", allowing us to implement an
-elegant `mul` that performs faster than it should given how it is constructed. 
+elegant `mul` that would have exponential complexity in any other language,
+but is quadratic in Formality.
 
 ![stats](stats.png)
 
 This charts the memory (in bytes), work (rewrites) and time it took the
 algorithm to multiply two random numbers in function of the bit-length of each
-number. It seems to be quadratic with a small constant, **even though it is
-programmed in a way that should be exponential**. It is not fast compared to
-big-integer techniques, but it highlights how some algorithms that look
-impractical can be reasonably efficient on optimal evaluators. Keeping these
-techniques in mind may allow a funtional programmer not to dismiss elegant ideas
-that are more efficient than initially thought. 
+number. Note it is not fast compared to state-of-art techniques, but it
+highlights how clean algorithms that look impractical can be reasonable on
+optimal evaluators. Keeping these techniques in mind may allow a Formality
+programmer not to dismiss elegant ideas that are more efficient than they seem.
 
 Note that Formality's non-optimal back-ends (like JavaScript) are still much
 faster in practice (and feature actual BigInts, so there is no need to implement
-multiplication that way). But by exploring these techniques, and by improving
-the optimal runtime, it could be a great alternative in a future. To learn more
+multiplication that way). But by building on these techniques, and by improving
+the optimal runtime, it could be a viable alternative in a future. To learn more
 about that, check ["Solving the mystery behind Abstract Algorithm’s magical
 optimizations"](https://medium.com/@maiavictor/solving-the-mystery-behind-abstract-algorithms-magical-optimizations-144225164b07).
 
